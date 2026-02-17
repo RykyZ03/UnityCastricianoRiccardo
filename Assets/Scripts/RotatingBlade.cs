@@ -12,7 +12,6 @@ public class RotatingBlade : MonoBehaviour
 
     [Header("Reset Player")]
     public Transform player;
-    public Transform spawnPoint;
 
     private Transform currentTarget;
 
@@ -23,13 +22,9 @@ public class RotatingBlade : MonoBehaviour
 
     void Update()
     {
-        // Rotazione lama
         transform.Rotate(rotationSpeed * Time.deltaTime);
-
-        // Movimento avanti e indietro
         transform.position = Vector3.MoveTowards(transform.position, currentTarget.position, moveSpeed * Time.deltaTime);
 
-        // Cambia direzione quando raggiunge il punto
         if (Vector3.Distance(transform.position, currentTarget.position) < 0.1f)
         {
             currentTarget = (currentTarget == pointA) ? pointB : pointA;
@@ -40,17 +35,7 @@ public class RotatingBlade : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            CharacterController cc = player.GetComponent<CharacterController>();
-            if (cc != null)
-            {
-                cc.enabled = false;
-                player.position = spawnPoint.position;
-                cc.enabled = true;
-
-                MovementInput mi = player.GetComponent<MovementInput>();
-                if (mi != null)
-                    mi.ResetVerticalVelocity();
-            }
+            player.GetComponent<PlayerDeath>().Die();
         }
     }
 }

@@ -33,7 +33,9 @@ public class MovementInput : MonoBehaviour
     [Header("Air Control")]
     [Range(0, 1f)] public float airControlMultiplier = 0.3f;
 
-    private Vector3 moveVector;
+    private Vector3 horizontalMove;
+    // Flag per bloccare lo spam del salto
+    private bool isJumping = false;
 
     void Start()
     {
@@ -46,26 +48,34 @@ public class MovementInput : MonoBehaviour
     {
         InputMagnitude();
 
-        // Ground check
         isGrounded = controller.isGrounded;
 
         if (isGrounded)
         {
+            // Quando tocca terra resetta il flag di salto
+            if (isJumping)
+                isJumping = false;
+
             verticalVel = -0.5f;
 
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Input.GetKeyDown(KeyCode.Space) && !isJumping)
             {
                 verticalVel = Mathf.Sqrt(JumpHeight * 2f * Gravity);
+                isJumping = true;
             }
         }
         else
         {
+            // Applica gravità progressiva quando il player è in aria
             verticalVel -= Gravity * Time.deltaTime;
         }
 
-        // Applica movimento verticale
-        moveVector = new Vector3(0, verticalVel, 0);
-        controller.Move(moveVector * Time.deltaTime);
+        // Unica chiamata a Move() che combina XZ e Y nello stesso frame
+        Vector3 finalMove = horizontalMove + new Vector3(0, verticalVel, 0);
+        controller.Move(finalMove * Time.deltaTime);
+
+        // Reset del vettore orizzontale per evitare valori residui nel frame successivo
+        horizontalMove = Vector3.zero;
     }
 
     void PlayerMoveAndRotation()
@@ -73,22 +83,31 @@ public class MovementInput : MonoBehaviour
         InputX = Input.GetAxis("Horizontal");
         InputZ = Input.GetAxis("Vertical");
 
+        // Calcola direzioni forward e right della camera, ignorando l'asse Y
         Vector3 forward = cam.transform.forward;
         Vector3 right = cam.transform.right;
+
         forward.y = 0f;
         right.y = 0f;
         forward.Normalize();
         right.Normalize();
 
+        // Direzione di movimento relativa alla camera
         desiredMoveDirection = forward * InputZ + right * InputX;
 
         if (!blockRotationPlayer)
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredMoveDirection), desiredRotationSpeed);
+            // Ruota il player gradualmente verso la direzione di movimento
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                Quaternion.LookRotation(desiredMoveDirection),
+                desiredRotationSpeed
+            );
 
-            // Applica velocità ridotta se in aria
+            // Velocità ridotta in aria tramite airControlMultiplier
+            // Salva il vettore senza chiamare Move(), lo farà Update()
             float currentVelocity = isGrounded ? Velocity : Velocity * airControlMultiplier;
-            controller.Move(desiredMoveDirection * Time.deltaTime * currentVelocity);
+            horizontalMove = desiredMoveDirection * currentVelocity;
         }
     }
 
@@ -101,23 +120,20 @@ public class MovementInput : MonoBehaviour
 
         if (isGrounded)
         {
-            // A terra: animazione e movimento normali
             if (Speed > allowPlayerRotation)
             {
                 anim.SetFloat("Blend", Speed, StartAnimTime, Time.deltaTime);
                 PlayerMoveAndRotation();
             }
-            else if (Speed < allowPlayerRotation)
+            else
             {
                 anim.SetFloat("Blend", Speed, StopAnimTime, Time.deltaTime);
             }
         }
         else
         {
-            // In aria: blocca animazione ma permetti movimento
+            // In aria: blocca animazione di corsa
             anim.SetFloat("Blend", 0, StopAnimTime, Time.deltaTime);
-
-            // Permetti movimento in aria se c'è input
             if (Speed > allowPlayerRotation)
             {
                 PlayerMoveAndRotation();
@@ -125,8 +141,10 @@ public class MovementInput : MonoBehaviour
         }
     }
 
+    // Chiamato da PlayerDeath per azzerare la caduta al momento del reset
     public void ResetVerticalVelocity()
     {
         verticalVel = 0f;
+        isJumping = false;
     }
 }

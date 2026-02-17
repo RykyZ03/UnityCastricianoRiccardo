@@ -4,12 +4,13 @@ public class MovingSpikes : MonoBehaviour
 {
     [Header("Movimento Su e Giù")]
     public Transform pointA; // Punto più in basso
-    public Transform pointB; // Punto più in alto
+    public Transform pointB; // Punto più alto
     public float moveSpeed = 2f;
 
     [Header("Reset Player")]
     public Transform player;
-    public Transform spawnPoint;
+
+    // Tiene traccia del punto di destinazione corrente
 
     private Transform currentTarget;
 
@@ -20,10 +21,10 @@ public class MovingSpikes : MonoBehaviour
 
     void Update()
     {
-        // Movimento su e giù
+        // Movimento su e giù tra i due punti
+
         transform.position = Vector3.MoveTowards(transform.position, currentTarget.position, moveSpeed * Time.deltaTime);
 
-        // Cambia direzione quando raggiunge il punto
         if (Vector3.Distance(transform.position, currentTarget.position) < 0.1f)
         {
             currentTarget = (currentTarget == pointA) ? pointB : pointA;
@@ -34,17 +35,10 @@ public class MovingSpikes : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            CharacterController cc = player.GetComponent<CharacterController>();
-            if (cc != null)
-            {
-                cc.enabled = false;
-                player.position = spawnPoint.position;
-                cc.enabled = true;
-
-                MovementInput mi = player.GetComponent<MovementInput>();
-                if (mi != null)
-                    mi.ResetVerticalVelocity();
-            }
+            player.GetComponent<PlayerDeath>().Die();
         }
     }
 }
+
+
+
